@@ -1,2 +1,5 @@
-matplotlib
 numpy
+matplotlib
+scipy
+click
+PyQt6

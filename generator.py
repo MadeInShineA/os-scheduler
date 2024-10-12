@@ -1,21 +1,56 @@
+import pathlib
+import random
+import click
 import matplotlib.pyplot as plt
 import numpy as np
-
-import random
-
-#TODO replace with read from console
-number_tasks = 1000
-tasks = []
-priority = [1,2,3]
-priority_weight = [0.05, 0.25, 0.7]
-
-for i in range(number_tasks):
-  task = {}
-  task['id'] = i+1
-  task['priority'] = random.choices(priority, priority_weight)[0]
-  task['arrival_time'] = np.random.poisson()
+from scipy import stats
 
 
-  tasks.append(task)
+@click.command()
+@click.option("--number_tasks", required=True, type=int)
+@click.option("--poisson_number", default=5, type=int)
+@click.option("--exp_scale", default=20, type=int)
+@click.option("--display_graphics", default=False, type=bool)
+def generate_file(number_tasks, poisson_number, exp_scale, display_graphics):
+    res_filepath = pathlib.Path(__file__).parent.resolve() / "./outputs/result.csv"
+    priorities_weights = [0.05, 0.25, 0.7]
+    priorities = [1, 2, 3]
 
-print(tasks)
+    poisson_distribution = np.random.poisson(poisson_number, number_tasks)
+    exp_distribution = stats.expon.rvs(scale=exp_scale, size=number_tasks) + 10
+    exp_distribution = np.ndarray.round(exp_distribution / 10) * 10
+
+    # TODO Ajust filepath
+    with open(res_filepath, "w") as file:
+        for i in range(number_tasks):
+            id = str(i + 1)
+            arrival_time = str(sum(poisson_distribution[0 : i + 1]))
+            execution_time = int(exp_distribution[i])
+            priority = str(random.choices(priorities, priorities_weights)[0])
+
+            file.write(f"{id} {arrival_time} {execution_time} {priority}\n")
+
+    if display_graphics:
+        plt.hist(
+            poisson_distribution,
+            bins=range(min(poisson_distribution), max(poisson_distribution) + 1),
+            density=True,
+            alpha=0.6,
+            color="g",
+        )
+        plt.title(f"Distribution de Poisson (lambda={poisson_number})")
+        plt.xlabel("Nombre d'événements (k)")
+        plt.ylabel("Probabilité")
+        plt.show()
+
+        plt.hist(
+            exp_distribution, bins=10, density=True, alpha=0.6, color="g"
+        )  # 10 bins pour un affichage plus clair
+        plt.title(f"Distribution exponentielle (scale={exp_scale})")
+        plt.xlabel("Temps d'exécution")
+        plt.ylabel("Densité de probabilité")
+        plt.show()
+
+
+if __name__ == "__main__":
+    generate_file()
