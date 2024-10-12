@@ -87,10 +87,10 @@ scheduler_performance_t *fcfs(task_t *head) {
 
     if (seconds < task_pointer->arrival_time) {
       printf("Waiting on PID | %ld\n", task_pointer->process_id);
-      task_performance->waiting_time = task_pointer->arrival_time - seconds;
+      task_performance->waiting_time = 0;
       seconds = task_pointer->arrival_time;
     } else {
-      task_performance->waiting_time = 0;
+      task_performance->waiting_time = seconds - task_pointer->arrival_time;
     }
 
     printf("Handeling PID | %ld\n", task_pointer->process_id);
