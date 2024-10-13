@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,14 +8,6 @@
 #define CNTXT_SWITCH 1
 #define MAX_TASK_SIZE 1024
 
-typedef struct task {
-  uint64_t process_id;
-  uint64_t arrival_time;
-  uint64_t execution_time;
-  uint8_t priority;
-  struct task *next_task;
-} task_t;
-
 typedef struct task_performance {
   uint64_t process_id;
   uint64_t turnaround_time;
@@ -22,10 +15,21 @@ typedef struct task_performance {
   uint64_t pre_empted_number;
 } task_performance_t;
 
+typedef struct task {
+  uint64_t process_id;
+  uint64_t arrival_time;
+  uint64_t execution_time;
+  uint64_t executed_time;
+  uint8_t priority;
+  struct task *next_task;
+  task_performance_t task_performance;
+} task_t;
+
 typedef struct scheduler_performance {
   uint64_t total_time;
   uint64_t context_switches_total_number;
   uint64_t context_switch_total_time;
+  // TODO need of * ?
   task_performance_t *task_performance_array[MAX_TASK_SIZE];
 } scheduler_performance_t;
 
@@ -44,7 +48,7 @@ uint8_t getSchedulerType() {
   return scheduler_type;
 }
 
-/*char* getFilePath() {
+char* getFilePath() {
   char *filepath = (char *)malloc(256 * sizeof(char));
   if (filepath == NULL) {
       perror("Failed to allocate memory for file path");
@@ -67,7 +71,7 @@ uint8_t getSchedulerType() {
   }
 
   return filepath;
-}*/
+}
 
 scheduler_performance_t *fcfs(task_t *head) {
   scheduler_performance_t *res =
@@ -76,33 +80,33 @@ scheduler_performance_t *fcfs(task_t *head) {
   int seconds = 0;
   int time_waited = 0;
   int time_handeling = 0;
-  task_t *task_pointer = head;
+  task_t *p_task = head;
 
-  while (task_pointer != NULL) {
+  while (p_task != NULL) {
     task_performance_t *task_performance =
         (task_performance_t *)malloc(sizeof(task_performance_t));
 
-    task_performance->process_id = task_pointer->process_id;
+    task_performance->process_id = p_task->process_id;
     task_performance->pre_empted_number = 0;
 
-    if (seconds < task_pointer->arrival_time) {
-      printf("Waiting on PID | %ld\n", task_pointer->process_id);
+    if (seconds < p_task->arrival_time) {
+      printf("Waiting on PID | %ld\n", p_task->process_id);
       task_performance->waiting_time = 0;
-      seconds = task_pointer->arrival_time;
+      seconds = p_task->arrival_time;
     } else {
-      task_performance->waiting_time = seconds - task_pointer->arrival_time;
+      task_performance->waiting_time = seconds - p_task->arrival_time;
     }
 
-    printf("Handeling PID | %ld\n", task_pointer->process_id);
-    seconds += task_pointer->execution_time;
+    printf("Handeling PID | %ld\n", p_task->process_id);
+    seconds += p_task->execution_time;
 
     printf("Current time : %d\n", seconds);
 
     task_performance->turnaround_time =
-        task_pointer->execution_time + task_performance->waiting_time;
+        p_task->execution_time + task_performance->waiting_time;
     res->task_performance_array[task_counter] = task_performance;
     task_counter += 1;
-    task_pointer = task_pointer->next_task;
+    p_task = p_task->next_task;
   }
 
   res->context_switches_total_number = 0;
@@ -112,19 +116,132 @@ scheduler_performance_t *fcfs(task_t *head) {
   return res;
 }
 
-scheduler_performance_t *rr(task_t *head) {
+scheduler_performance_t *rr(task_t *head, uint8_t quantum_time) {
+  scheduler_performance_t *res =
+      (scheduler_performance_t *)malloc(sizeof(scheduler_performance_t));
+  uint64_t finished_task_counter = 0;
+  uint64_t task_counter = 0;
+  uint64_t seconds = 0;
+  uint64_t time_waited = 0;
+  uint64_t time_handeling = 0;
+  task_t *queue_head = head;
+  task_t *queue_pointer = queue_head;
+  uint64_t total_context_switches = 0;
+
+
+  while (queue_pointer != NULL) {
+    if (seconds < queue_pointer->next_task->arrival_time) {
+      // the next packet hasn't arrived so we switch between packets in the queue
+
+      while (queue_pointer != NULL && (queue_pointer->arrival_time > seconds || queue_pointer->executed_time >= queue_pointer->execution_time)) {
+        queue_pointer = queue_pointer->next_task;
+        if (queue_pointer == NULL) {
+            queue_pointer = queue_head;
+        }
+      }
+
+      if (queue_pointer == NULL) {
+        printf("Break");
+        break;  // No more tasks to process
+      }
+      
+      task_t current_handled_task = *queue_pointer;
+      if (seconds % quantum_time == 0) {
+        printf("Switching task, current time: %ld\n", seconds);
+        
+        current_handled_task.task_performance.pre_empted_number += 1;
+
+        total_context_switches += 1;
+
+        // Check if we are at the end of the queue, therefore reseting to head
+        if(seconds < queue_pointer->next_task->arrival_time){
+          queue_pointer = queue_head;
+        }else{
+          queue_pointer = queue_pointer->next_task;
+        }
+        printf("Switched from task %ld to %ld\n", current_handled_task.process_id, queue_pointer->next_task->process_id);
+
+      } else {
+        current_handled_task.executed_time += 1;
+        if(current_handled_task.executed_time >= current_handled_task.execution_time){
+          // The task leaves the queue
+          // current_handled_task->task_performance->turnaround_time is currently set at the arrival time
+          current_handled_task.task_performance.turnaround_time = seconds - current_handled_task.task_performance.turnaround_time;
+          current_handled_task.task_performance.waiting_time = current_handled_task.task_performance.pre_empted_number * quantum_time;
+          res->task_performance_array[finished_task_counter] = &current_handled_task.task_performance;
+
+          finished_task_counter ++;
+          printf("Finished task: %ld\n", current_handled_task.process_id);
+        }
+      }
+    } else {
+      // Add the arriving packet inside the queue
+      queue_pointer = queue_pointer->next_task;    
+      printf("Added task : %ld to the queue\n", queue_pointer->process_id);
+      queue_pointer->task_performance.turnaround_time = seconds;
+    }
+    seconds++;
+  }
+
+  res->total_time = seconds;
+  res->context_switches_total_number = total_context_switches;
+  res->context_switch_total_time = total_context_switches * CNTXT_SWITCH;
+  return res;
+}
+
+scheduler_performance_t *pr(task_t *head) {
   scheduler_performance_t *res =
       (scheduler_performance_t *)malloc(sizeof(scheduler_performance_t));
   int task_counter = 0;
   int seconds = 0;
   int time_waited = 0;
   int time_handeling = 0;
-  int doing_task = 1;
-  task_t *task_pointer = head;
+  int current_priority = head->priority;
+  task_t *p_first_task_not_execute = head;
+  task_t *p_current_task = head;
+  task_t *p_tmp = head;
 
-  while (task_pointer != NULL && !doing_task) {
+  while (p_first_task_not_execute != NULL) {
+    if(p_first_task_not_execute->execution_time == 0){
+      while (p_first_task_not_execute != NULL && p_first_task_not_execute->execution_time == 0){
+        p_first_task_not_execute = p_first_task_not_execute->next_task;
+      }  
+      
+      if (p_first_task_not_execute == NULL) {
+        break;
+      }    
+    }
+    
+    while(p_tmp != NULL && p_tmp->arrival_time <= seconds){
+      if(p_tmp->priority > current_priority && p_tmp->execution_time != 0){
+        current_priority = p_tmp->priority;
+        p_current_task = p_tmp;
+
+        if(p_current_task->priority == 3){
+          break;
+        }
+      }
+      p_tmp = p_tmp->next_task;
+    }
+
+    if(p_current_task->execution_time > p_current_task->executed_time){
+      p_current_task->executed_time += 1;
+    }
+
+    p_tmp = p_first_task_not_execute;
+    current_priority = p_first_task_not_execute->priority;
     seconds++;
+
+    if(p_current_task->execution_time <= p_current_task->executed_time){
+      p_current_task->task_performance.turnaround_time = seconds - p_current_task->arrival_time;
+      p_current_task->task_performance.waiting_time = p_current_task->task_performance.turnaround_time - p_current_task->execution_time;
+    }
   }
+
+  res->context_switches_total_number = 0;
+  res->context_switch_total_time = 0;
+  res->total_time = seconds;
+
   return res;
 }
 
@@ -176,8 +293,15 @@ int main() {
     temp->process_id = atoi(p_process_id);
     temp->arrival_time = atoi(p_arrival_time);
     temp->execution_time = atoi(p_execution_time);
+    temp->executed_time = 0;
     temp->priority = atoi(p_priority);
     temp->next_task = NULL;
+
+    // Initialize task_performance
+    temp->task_performance.process_id = temp->process_id;
+    temp->task_performance.turnaround_time = 0;
+    temp->task_performance.waiting_time = 0;
+    temp->task_performance.pre_empted_number = 0;
 
     if (head_task == NULL) {
       head_task = temp;
@@ -197,7 +321,7 @@ int main() {
       p_task = p_task->next_task;
     } */
 
-  scheduler_performance_t *res = fcfs(head_task);
+  scheduler_performance_t *res = rr2(head_task, RR_QUANTUM);
   write_output(res);
 
   /* int index = 0;
