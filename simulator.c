@@ -32,8 +32,7 @@ typedef struct scheduler_performance {
   uint64_t total_time;
   uint64_t context_switches_total_number;
   uint64_t context_switch_total_time;
-  // TODO need of * ?
-  task_performance_t *task_performance_array[MAX_TASK_SIZE];
+  task_performance_t task_performance_array[MAX_TASK_SIZE];
 } scheduler_performance_t;
 
 
@@ -101,14 +100,20 @@ task_t* get_tasks_from_file(char* filepath){
 
 void write_output(scheduler_performance_t *scheduler_performance) {
   FILE *execution_file = fopen("./execution.csv", "w");
-  int i = 0;
-   while (scheduler_performance->task_performance_array[i] != NULL) {
-    task_performance_t *task_performance = scheduler_performance->task_performance_array[i];
+  for (int i = 0; i < MAX_TASK_SIZE; i++) {
+    // Check for sentinel value
+    if (scheduler_performance->task_performance_array[i].process_id == 0 && 
+        i != 0) {
+      break;  // Stop if we encounter the first zero after the first element
+    }
 
-    fprintf(execution_file, "%lu %lu %lu %lu\n", task_performance->process_id,
-            task_performance->turnaround_time, task_performance->waiting_time,
-            task_performance->pre_empted_number);
-    i++;
+    task_performance_t task_performance = scheduler_performance->task_performance_array[i];
+
+    fprintf(execution_file, "%lu %lu %lu %lu\n", 
+            task_performance.process_id,
+            task_performance.turnaround_time, 
+            task_performance.waiting_time,
+            task_performance.pre_empted_number);
   }
   fclose(execution_file);
 
@@ -154,7 +159,7 @@ scheduler_performance_t *fcfs(task_t *head) {
 
     p_task->task_performance.turnaround_time =
         p_task->execution_time + p_task->task_performance.waiting_time;
-    res->task_performance_array[task_counter] = &(p_task->task_performance);
+    res->task_performance_array[task_counter] = p_task->task_performance;
     task_counter += 1;
     p_task = p_task->next_task;
   }
@@ -222,7 +227,7 @@ scheduler_performance_t *rr(task_t *head, uint8_t quantum_time) {
           // Mark task as completed, store performance data
           iter->task_performance.turnaround_time = seconds - iter->arrival_time;
           iter->task_performance.waiting_time = iter->task_performance.turnaround_time - iter->execution_time;
-          res->task_performance_array[finished_task_counter] = &(iter->task_performance);
+          res->task_performance_array[finished_task_counter] = iter->task_performance;
           finished_task_counter++;
         }
       }
@@ -315,7 +320,7 @@ scheduler_performance_t *pr(task_t *head) {
     if (p_current_task->executed_time >= p_current_task->execution_time) {
       p_current_task->task_performance.turnaround_time = seconds - p_current_task->arrival_time;
       p_current_task->task_performance.waiting_time = p_current_task->task_performance.turnaround_time - p_current_task->execution_time;
-      res->task_performance_array[task_counter] = &(p_current_task->task_performance);
+      res->task_performance_array[task_counter] = p_current_task->task_performance;
       task_counter++;
 
       printf("Task %ld finished at time %d\n", p_current_task->process_id, seconds);
@@ -378,7 +383,7 @@ scheduler_performance_t *srtf(task_t *head) {
     if (p_current_task->executed_time >= p_current_task->execution_time) {
       p_current_task->task_performance.turnaround_time = seconds - p_current_task->arrival_time;
       p_current_task->task_performance.waiting_time = p_current_task->task_performance.turnaround_time - p_current_task->execution_time;
-      res->task_performance_array[task_counter] = &(p_current_task->task_performance);
+      res->task_performance_array[task_counter] = p_current_task->task_performance;
       task_counter++;
 
       printf("Task %ld finished at time %d\n", p_current_task->process_id, seconds);
