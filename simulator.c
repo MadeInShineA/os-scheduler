@@ -99,7 +99,7 @@ task_t* get_tasks_from_file(char* filepath){
 
 
 void write_output(scheduler_performance_t *scheduler_performance) {
-  FILE *execution_file = fopen("./execution.csv", "w");
+  FILE *execution_file = fopen("./execution-1000-tasks-srtf.csv", "w");
   for (int i = 0; i < MAX_TASK_SIZE; i++) {
     // Check for sentinel value
     if (scheduler_performance->task_performance_array[i].process_id == 0 && 
@@ -117,7 +117,7 @@ void write_output(scheduler_performance_t *scheduler_performance) {
   }
   fclose(execution_file);
 
-  FILE *performance_file = fopen("./performance.csv", "w");
+  FILE *performance_file = fopen("./performance-1000-tasks-srtf.csv", "w");
 
   fprintf(performance_file, "total_time: %ld\n",
           scheduler_performance->total_time);
@@ -172,7 +172,7 @@ scheduler_performance_t *fcfs(task_t *head) {
 }
 
 
-scheduler_performance_t *rr(task_t *head, uint8_t quantum_time) {
+scheduler_performance_t *rr(task_t *head, uint8_t quantum_time, uint8_t context_switch_time) {
   scheduler_performance_t *res = (scheduler_performance_t *)malloc(sizeof(scheduler_performance_t));
   uint64_t finished_task_counter = 0;
   uint64_t seconds = 0;
@@ -205,6 +205,7 @@ scheduler_performance_t *rr(task_t *head, uint8_t quantum_time) {
           if(previous_task->executed_time < previous_task->execution_time){
             previous_task->task_performance.pre_empted_number ++;
           }
+          seconds += context_switch_time;
           total_context_switches++;
         }
         previous_task = iter;
@@ -270,14 +271,14 @@ scheduler_performance_t *rr(task_t *head, uint8_t quantum_time) {
 
   // Final performance data
   res->context_switches_total_number = total_context_switches;
-  res->context_switch_total_time = total_context_switches * CNTXT_SWITCH;
+  res->context_switch_total_time = total_context_switches * context_switch_time;
   res->total_time = seconds;
 
   return res;
 }
 
 
-scheduler_performance_t *pr(task_t *head) {
+scheduler_performance_t *pr(task_t *head, uint8_t context_switch_time) {
   scheduler_performance_t *res = (scheduler_performance_t *)malloc(sizeof(scheduler_performance_t));
   int task_counter = 0;
   int seconds = 0;
@@ -307,8 +308,8 @@ scheduler_performance_t *pr(task_t *head) {
       if (p_current_task != NULL && p_current_task->executed_time < p_current_task->execution_time) {
         p_current_task->task_performance.pre_empted_number++;
         total_context_switches++;
-        res->context_switch_total_time += CNTXT_SWITCH;
-        seconds += CNTXT_SWITCH;
+        res->context_switch_total_time += context_switch_time;
+        seconds += context_switch_time;
       }
       p_current_task = highest_priority_task;
       printf("Switched to task %ld at time %d\n", p_current_task->process_id, seconds);
@@ -334,12 +335,12 @@ scheduler_performance_t *pr(task_t *head) {
 
   res->total_time = seconds;
   res->context_switches_total_number = total_context_switches;
-  res->context_switch_total_time = total_context_switches * CNTXT_SWITCH;
+  res->context_switch_total_time = total_context_switches * context_switch_time;
   return res;
 }
 
 
-scheduler_performance_t *srtf(task_t *head) {
+scheduler_performance_t *srtf(task_t *head, uint8_t context_switch_time) {
   scheduler_performance_t *res = (scheduler_performance_t *)malloc(sizeof(scheduler_performance_t));
   int task_counter = 0;
   int seconds = 0;
@@ -370,8 +371,8 @@ scheduler_performance_t *srtf(task_t *head) {
 
         p_current_task->task_performance.pre_empted_number++;
         total_context_switches++;
-        res->context_switch_total_time += CNTXT_SWITCH;
-        seconds += CNTXT_SWITCH;
+        res->context_switch_total_time += context_switch_time;
+        seconds += context_switch_time;
       }
       p_current_task = highest_priority_task;
       printf("Switched to task %ld at time %d\n", p_current_task->process_id, seconds);
@@ -397,7 +398,7 @@ scheduler_performance_t *srtf(task_t *head) {
 
   res->total_time = seconds;
   res->context_switches_total_number = total_context_switches;
-  res->context_switch_total_time = total_context_switches * CNTXT_SWITCH;
+  res->context_switch_total_time = total_context_switches * context_switch_time;
   return res;
 }
 
@@ -421,7 +422,7 @@ void free_data(task_t* tasks_head, scheduler_performance_t* res){
 
 
 int main() {
-  char filepath[] = "./inputs/tasks.csv";
+  char filepath[] = "./data-1000-tasks.csv";
   uint8_t scheduler_type = get_scheduler_type();
   task_t* tasks_head = get_tasks_from_file(filepath);
   scheduler_performance_t *res = NULL;
@@ -432,13 +433,13 @@ int main() {
     res = fcfs(tasks_head);
     break;
   case 2:
-    res = rr(tasks_head, RR_QUANTUM);
+    res = rr(tasks_head, RR_QUANTUM, CNTXT_SWITCH);
     break;
   case 3:
-    res = pr(tasks_head);
+    res = pr(tasks_head, CNTXT_SWITCH);
     break;
   case 4:
-    res = srtf(tasks_head);
+    res = srtf(tasks_head, CNTXT_SWITCH);
     break;
   default:
     printf("Unknown scheduler_type, exiting\n");

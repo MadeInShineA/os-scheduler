@@ -1,6 +1,2 @@
 simulator
-outputs/
-inputs/
 .vscode/
-execution.csv
-performance.csv

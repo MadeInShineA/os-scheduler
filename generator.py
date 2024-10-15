@@ -12,7 +12,7 @@ from scipy import stats
 @click.option("--exp_scale", default=20, type=int)
 @click.option("--display_graphics", default=False, type=bool)
 def generate_file(number_tasks, poisson_number, exp_scale, display_graphics):
-    res_filepath = pathlib.Path(__file__).parent.resolve() / "./outputs/result.csv"
+    res_filepath = pathlib.Path(__file__).parent.resolve() / f"./data-{number_tasks}-tasks.csv"
     priorities_weights = [0.05, 0.25, 0.7]
     priorities = [1, 2, 3]
 
@@ -38,17 +38,17 @@ def generate_file(number_tasks, poisson_number, exp_scale, display_graphics):
             alpha=0.6,
             color="g",
         )
-        plt.title(f"Distribution de Poisson (lambda={poisson_number})")
-        plt.xlabel("Nombre d'événements (k)")
-        plt.ylabel("Probabilité")
+        plt.title(f"Poisson distribution (lambda={poisson_number})")
+        plt.xlabel("Number of events (k)")
+        plt.ylabel("Probability")
         plt.show()
 
         plt.hist(
             exp_distribution, bins=10, density=True, alpha=0.6, color="g"
         )  # 10 bins pour un affichage plus clair
-        plt.title(f"Distribution exponentielle (scale={exp_scale})")
-        plt.xlabel("Temps d'exécution")
-        plt.ylabel("Densité de probabilité")
+        plt.title(f"Exponential distribution (scale={exp_scale})")
+        plt.xlabel("execution time")
+        plt.ylabel("probability density")
         plt.show()
 
 
