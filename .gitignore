@@ -1,2 +1,6 @@
 simulator
 .vscode/
+execution.csv
+performance.csv
+tasks.csv
+

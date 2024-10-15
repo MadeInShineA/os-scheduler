@@ -12,7 +12,7 @@ from scipy import stats
 @click.option("--exp_scale", default=20, type=int)
 @click.option("--display_graphics", default=False, type=bool)
 def generate_file(number_tasks, poisson_number, exp_scale, display_graphics):
-    res_filepath = pathlib.Path(__file__).parent.resolve() / f"./data-{number_tasks}-tasks.csv"
+    res_filepath = pathlib.Path(__file__).parent.resolve() / f"./tasks.csv"
     priorities_weights = [0.05, 0.25, 0.7]
     priorities = [1, 2, 3]
 

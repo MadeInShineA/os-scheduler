@@ -99,7 +99,7 @@ task_t* get_tasks_from_file(char* filepath){
 
 
 void write_output(scheduler_performance_t *scheduler_performance) {
-  FILE *execution_file = fopen("./execution-1000-tasks-srtf.csv", "w");
+  FILE *execution_file = fopen("./execution.csv", "w");
   for (int i = 0; i < MAX_TASK_SIZE; i++) {
     // Check for sentinel value
     if (scheduler_performance->task_performance_array[i].process_id == 0 && 
@@ -117,7 +117,7 @@ void write_output(scheduler_performance_t *scheduler_performance) {
   }
   fclose(execution_file);
 
-  FILE *performance_file = fopen("./performance-1000-tasks-srtf.csv", "w");
+  FILE *performance_file = fopen("./performance.csv", "w");
 
   fprintf(performance_file, "total_time: %ld\n",
           scheduler_performance->total_time);
@@ -422,7 +422,7 @@ void free_data(task_t* tasks_head, scheduler_performance_t* res){
 
 
 int main() {
-  char filepath[] = "./data-1000-tasks.csv";
+  char filepath[] = "./tasks.csv";
   uint8_t scheduler_type = get_scheduler_type();
   task_t* tasks_head = get_tasks_from_file(filepath);
   scheduler_performance_t *res = NULL;
