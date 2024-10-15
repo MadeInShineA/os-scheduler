@@ -4,7 +4,7 @@ import numpy as np
 import itertools
 import sys
 
-methods = ['fcfs', 'pr', 'rr', 'srtf']
+methods = ['fcfs', 'rr', 'pr' , 'srtf']
 data_numbers = [10, 50, 100, 500, 1000]
 metrics = ['mean', 'std', 'percentile_50', 'percentile_90']
 
