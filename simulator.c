@@ -4,10 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define RR_QUANTUM 2
+#define RR_QUANTUM 20
 #define CNTXT_SWITCH 1
 #define MAX_TASK_SIZE 1024
-
 
 typedef struct task_performance {
   uint64_t process_id;
@@ -15,7 +14,6 @@ typedef struct task_performance {
   uint64_t waiting_time;
   uint64_t pre_empted_number;
 } task_performance_t;
-
 
 typedef struct task {
   uint64_t process_id;
@@ -27,14 +25,12 @@ typedef struct task {
   task_performance_t task_performance;
 } task_t;
 
-
 typedef struct scheduler_performance {
   uint64_t total_time;
   uint64_t context_switches_total_number;
   uint64_t context_switch_total_time;
   task_performance_t task_performance_array[MAX_TASK_SIZE];
 } scheduler_performance_t;
-
 
 uint8_t get_scheduler_type() {
   uint8_t scheduler_type = 0;
@@ -51,8 +47,7 @@ uint8_t get_scheduler_type() {
   return scheduler_type;
 }
 
-
-task_t* get_tasks_from_file(char* filepath){
+task_t *get_tasks_from_file(char *filepath) {
   FILE *file = fopen(filepath, "r");
   char line[256];
 
@@ -97,27 +92,25 @@ task_t* get_tasks_from_file(char* filepath){
   return tasks_head;
 }
 
-
 void write_output(scheduler_performance_t *scheduler_performance) {
-  FILE *execution_file = fopen("./execution.csv", "w");
+  FILE *execution_file = fopen("./outputs/execution/srtf/execution-1000-tasks-srtf.csv", "w");
   for (int i = 0; i < MAX_TASK_SIZE; i++) {
     // Check for sentinel value
-    if (scheduler_performance->task_performance_array[i].process_id == 0 && 
+    if (scheduler_performance->task_performance_array[i].process_id == 0 &&
         i != 0) {
-      break;  // Stop if we encounter the first zero after the first element
+      break; // Stop if we encounter the first zero after the first element
     }
 
-    task_performance_t task_performance = scheduler_performance->task_performance_array[i];
+    task_performance_t task_performance =
+        scheduler_performance->task_performance_array[i];
 
-    fprintf(execution_file, "%lu %lu %lu %lu\n", 
-            task_performance.process_id,
-            task_performance.turnaround_time, 
-            task_performance.waiting_time,
+    fprintf(execution_file, "%lu %lu %lu %lu\n", task_performance.process_id,
+            task_performance.turnaround_time, task_performance.waiting_time,
             task_performance.pre_empted_number);
   }
   fclose(execution_file);
 
-  FILE *performance_file = fopen("./performance.csv", "w");
+  FILE *performance_file = fopen("./outputs/performance/srtf/performance-1000-tasks-srtf.csv", "w");
 
   fprintf(performance_file, "total_time: %ld\n",
           scheduler_performance->total_time);
@@ -128,7 +121,6 @@ void write_output(scheduler_performance_t *scheduler_performance) {
 
   fclose(performance_file);
 }
-
 
 scheduler_performance_t *fcfs(task_t *head) {
   scheduler_performance_t *res =
@@ -171,22 +163,23 @@ scheduler_performance_t *fcfs(task_t *head) {
   return res;
 }
 
-
-scheduler_performance_t *rr(task_t *head, uint8_t quantum_time, uint8_t context_switch_time) {
-  scheduler_performance_t *res = (scheduler_performance_t *)malloc(sizeof(scheduler_performance_t));
+scheduler_performance_t *rr(task_t *head, uint8_t quantum_time,
+                            uint8_t context_switch_time) {
+  scheduler_performance_t *res =
+      (scheduler_performance_t *)malloc(sizeof(scheduler_performance_t));
   uint64_t finished_task_counter = 0;
   uint64_t seconds = 0;
   task_t *queue_head = head;
   task_t *queue_pointer = queue_head;
   uint64_t total_context_switches = 0;
-  task_t *previous_task = NULL;  // Track the previous task to detect context switches
+  task_t *previous_task =
+      NULL; // Track the previous task to detect context switches
   uint64_t total_tasks = 0;
   task_t *iter = head;
   while (iter != NULL) {
     total_tasks++;
     iter = iter->next_task;
   }
-
 
   while (finished_task_counter < total_tasks) {
     bool task_executed = false;
@@ -195,15 +188,17 @@ scheduler_performance_t *rr(task_t *head, uint8_t quantum_time, uint8_t context_
     // Look for a task that is ready to execute (has arrived and not finished)
     task_t *iter = queue_head;
     while (iter != NULL) {
-      if (iter->arrival_time <= seconds && iter->executed_time < iter->execution_time) {
+      if (iter->arrival_time <= seconds &&
+          iter->executed_time < iter->execution_time) {
         // We found a task that is ready to execute
         any_task_ready = true;
         task_executed = true;
 
-        // If the task switched, count a context switch (only if there are other tasks to switch to)
+        // If the task switched, count a context switch (only if there are other
+        // tasks to switch to)
         if (previous_task != iter && previous_task != NULL) {
-          if(previous_task->executed_time < previous_task->execution_time){
-            previous_task->task_performance.pre_empted_number ++;
+          if (previous_task->executed_time < previous_task->execution_time) {
+            previous_task->task_performance.pre_empted_number++;
           }
           seconds += context_switch_time;
           total_context_switches++;
@@ -216,7 +211,8 @@ scheduler_performance_t *rr(task_t *head, uint8_t quantum_time, uint8_t context_
         if (iter->executed_time + quantum_time < iter->execution_time) {
           iter->executed_time += quantum_time;
           seconds += quantum_time;
-          printf("Quantum used. Task %ld executed for %u seconds. Total executed: %ld\n",
+          printf("Quantum used. Task %ld executed for %u seconds. Total "
+                 "executed: %ld\n",
                  iter->process_id, quantum_time, iter->executed_time);
         } else {
           // Task will finish in less than a quantum
@@ -227,8 +223,10 @@ scheduler_performance_t *rr(task_t *head, uint8_t quantum_time, uint8_t context_
 
           // Mark task as completed, store performance data
           iter->task_performance.turnaround_time = seconds - iter->arrival_time;
-          iter->task_performance.waiting_time = iter->task_performance.turnaround_time - iter->execution_time;
-          res->task_performance_array[finished_task_counter] = iter->task_performance;
+          iter->task_performance.waiting_time =
+              iter->task_performance.turnaround_time - iter->execution_time;
+          res->task_performance_array[finished_task_counter] =
+              iter->task_performance;
           finished_task_counter++;
         }
       }
@@ -241,12 +239,13 @@ scheduler_performance_t *rr(task_t *head, uint8_t quantum_time, uint8_t context_
       task_t *iter = queue_head;
 
       while (iter != NULL) {
-        if (iter->arrival_time > seconds && iter->arrival_time < next_arrival_time) {
+        if (iter->arrival_time > seconds &&
+            iter->arrival_time < next_arrival_time) {
           next_arrival_time = iter->arrival_time;
         }
         iter = iter->next_task;
       }
-            
+
       // If we found a next task arrival in the future, jump to that time
       if (next_arrival_time != UINT64_MAX) {
         printf("Jumping to the next task arrival at: %ld\n", next_arrival_time);
@@ -260,11 +259,13 @@ scheduler_performance_t *rr(task_t *head, uint8_t quantum_time, uint8_t context_
     // Move the queue pointer forward
     queue_pointer = queue_pointer->next_task;
     if (queue_pointer == NULL) {
-      queue_pointer = queue_head;  // Wrap around to the start of the queue
+      queue_pointer = queue_head; // Wrap around to the start of the queue
     }
 
-    // Prevent unnecessary context switches when only one task is available to compute
-    if (!any_task_ready && previous_task != NULL && previous_task->executed_time < previous_task->execution_time) {
+    // Prevent unnecessary context switches when only one task is available to
+    // compute
+    if (!any_task_ready && previous_task != NULL &&
+        previous_task->executed_time < previous_task->execution_time) {
       queue_pointer = previous_task;
     }
   }
@@ -277,9 +278,9 @@ scheduler_performance_t *rr(task_t *head, uint8_t quantum_time, uint8_t context_
   return res;
 }
 
-
 scheduler_performance_t *pr(task_t *head, uint8_t context_switch_time) {
-  scheduler_performance_t *res = (scheduler_performance_t *)malloc(sizeof(scheduler_performance_t));
+  scheduler_performance_t *res =
+      (scheduler_performance_t *)malloc(sizeof(scheduler_performance_t));
   int task_counter = 0;
   int seconds = 0;
   int total_context_switches = 0;
@@ -292,7 +293,8 @@ scheduler_performance_t *pr(task_t *head, uint8_t context_switch_time) {
 
     while (p_tmp != NULL && p_tmp->arrival_time <= seconds) {
       if (p_tmp->executed_time < p_tmp->execution_time) {
-        if (highest_priority_task == NULL || p_tmp->priority < highest_priority_task->priority) {
+        if (highest_priority_task == NULL ||
+            p_tmp->priority < highest_priority_task->priority) {
           highest_priority_task = p_tmp;
         }
       }
@@ -305,29 +307,38 @@ scheduler_performance_t *pr(task_t *head, uint8_t context_switch_time) {
     }
 
     if (p_current_task != highest_priority_task) {
-      if (p_current_task != NULL && p_current_task->executed_time < p_current_task->execution_time) {
+      if (p_current_task != NULL &&
+          p_current_task->executed_time < p_current_task->execution_time) {
         p_current_task->task_performance.pre_empted_number++;
         total_context_switches++;
         res->context_switch_total_time += context_switch_time;
         seconds += context_switch_time;
       }
       p_current_task = highest_priority_task;
-      printf("Switched to task %ld at time %d\n", p_current_task->process_id, seconds);
+      printf("Switched to task %ld at time %d\n", p_current_task->process_id,
+             seconds);
     }
 
     p_current_task->executed_time++;
     seconds++;
 
     if (p_current_task->executed_time >= p_current_task->execution_time) {
-      p_current_task->task_performance.turnaround_time = seconds - p_current_task->arrival_time;
-      p_current_task->task_performance.waiting_time = p_current_task->task_performance.turnaround_time - p_current_task->execution_time;
-      res->task_performance_array[task_counter] = p_current_task->task_performance;
+      p_current_task->task_performance.turnaround_time =
+          seconds - p_current_task->arrival_time;
+      p_current_task->task_performance.waiting_time =
+          p_current_task->task_performance.turnaround_time -
+          p_current_task->execution_time;
+      res->task_performance_array[task_counter] =
+          p_current_task->task_performance;
       task_counter++;
 
-      printf("Task %ld finished at time %d\n", p_current_task->process_id, seconds);
+      printf("Task %ld finished at time %d\n", p_current_task->process_id,
+             seconds);
 
       p_first_task_not_execute = head;
-      while (p_first_task_not_execute != NULL && p_first_task_not_execute->executed_time >= p_first_task_not_execute->execution_time) {
+      while (p_first_task_not_execute != NULL &&
+             p_first_task_not_execute->executed_time >=
+                 p_first_task_not_execute->execution_time) {
         p_first_task_not_execute = p_first_task_not_execute->next_task;
       }
     }
@@ -338,7 +349,6 @@ scheduler_performance_t *pr(task_t *head, uint8_t context_switch_time) {
   res->context_switch_total_time = total_context_switches * context_switch_time;
   return res;
 }
-
 
 scheduler_performance_t *srtf(task_t *head, uint8_t context_switch_time) {
   scheduler_performance_t *res = (scheduler_performance_t *)malloc(sizeof(scheduler_performance_t));
@@ -350,31 +360,31 @@ scheduler_performance_t *srtf(task_t *head, uint8_t context_switch_time) {
 
   while (p_first_task_not_execute != NULL) {
     task_t *p_tmp = p_first_task_not_execute;
-    task_t *highest_priority_task = NULL;
+    task_t *shortest_task = NULL;
 
     while (p_tmp != NULL && p_tmp->arrival_time <= seconds) {
       if (p_tmp->executed_time < p_tmp->execution_time) {
-        if (highest_priority_task == NULL || p_tmp->priority < highest_priority_task->priority) {
-          highest_priority_task = p_tmp;
+        if (shortest_task == NULL || p_tmp->execution_time - p_tmp->executed_time < shortest_task->execution_time - shortest_task->executed_time) {
+          shortest_task = p_tmp;
         }
       }
       p_tmp = p_tmp->next_task;
     }
 
-    if (highest_priority_task == NULL) {
+    if (shortest_task == NULL) {
       seconds++;
       continue;
     }
 
-    if (p_current_task != highest_priority_task) {
+    if (p_current_task != shortest_task) {
       if (p_current_task != NULL && p_current_task->executed_time < p_current_task->execution_time) {
 
         p_current_task->task_performance.pre_empted_number++;
         total_context_switches++;
-        res->context_switch_total_time += context_switch_time;
-        seconds += context_switch_time;
+        res->context_switch_total_time += CNTXT_SWITCH;
+        seconds += CNTXT_SWITCH;
       }
-      p_current_task = highest_priority_task;
+      p_current_task = shortest_task;
       printf("Switched to task %ld at time %d\n", p_current_task->process_id, seconds);
     }
 
@@ -389,6 +399,7 @@ scheduler_performance_t *srtf(task_t *head, uint8_t context_switch_time) {
 
       printf("Task %ld finished at time %d\n", p_current_task->process_id, seconds);
 
+      // Retirer la tâche terminée de la liste
       p_first_task_not_execute = head;
       while (p_first_task_not_execute != NULL && p_first_task_not_execute->executed_time >= p_first_task_not_execute->execution_time) {
         p_first_task_not_execute = p_first_task_not_execute->next_task;
@@ -398,12 +409,11 @@ scheduler_performance_t *srtf(task_t *head, uint8_t context_switch_time) {
 
   res->total_time = seconds;
   res->context_switches_total_number = total_context_switches;
-  res->context_switch_total_time = total_context_switches * context_switch_time;
+  res->context_switch_total_time = total_context_switches * CNTXT_SWITCH;
   return res;
 }
 
-
-void free_tasks(task_t* tasks_head){
+void free_tasks(task_t *tasks_head) {
   task_t *current_task = tasks_head;
   task_t *next_task;
 
@@ -414,21 +424,18 @@ void free_tasks(task_t* tasks_head){
   }
 }
 
-
-void free_data(task_t* tasks_head, scheduler_performance_t* res){
+void free_data(task_t *tasks_head, scheduler_performance_t *res) {
   free_tasks(tasks_head);
   free(res);
 }
 
-
 int main() {
-  char filepath[] = "./tasks.csv";
+  char filepath[] = "./inputs/data-1000-tasks.csv";
   uint8_t scheduler_type = get_scheduler_type();
-  task_t* tasks_head = get_tasks_from_file(filepath);
+  task_t *tasks_head = get_tasks_from_file(filepath);
   scheduler_performance_t *res = NULL;
 
-  switch (scheduler_type)
-  {
+  switch (scheduler_type) {
   case 1:
     res = fcfs(tasks_head);
     break;
